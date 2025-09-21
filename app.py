@@ -60,11 +60,11 @@ if uploaded_file and coder:
     df = df[df["value"].notna()].reset_index(drop=True)
 
     # ----------------------------
-    # Sort positives first, then negatives
+    # Sort all positives first, then negatives
     # ----------------------------
     type_order = {"positive": 0, "negative": 1}
     df["type_order"] = df["type"].map(type_order)
-    df = df.sort_values(by=["ResponseId", "type_order", "item"]).reset_index(drop=True)
+    df = df.sort_values(by=["type_order"]).reset_index(drop=True)
 
     # ----------------------------
     # Save path for progress
@@ -109,8 +109,11 @@ if uploaded_file and coder:
     # ----------------------------
     if not unclassified.empty and st.session_state.current_index < len(unclassified):
         row = unclassified.iloc[st.session_state.current_index]
-        st.write(f"**ResponseId:** {row['ResponseId']} | **Type:** {row['type']} | **Item:** {row['item']}")
-        st.info(f"**Response:** {row['value']}")
+
+        # Positive/Negative header
+        st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
+
+        st.info(f"**Response text:** {row['value']}")
 
         # Select categories based on type
         if row["type"] == "positive":
@@ -118,7 +121,14 @@ if uploaded_file and coder:
         else:
             choices = negative_cats + special_cats + ["Not actually negative"]
 
-        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
+        # Add separator before special options
+        options_with_separator = []
+        for i, c in enumerate(choices):
+            if i == 5:  # after the five structured categories
+                options_with_separator.append("---")  # Streamlit will render as horizontal line
+            options_with_separator.append(c)
+
+        choice = st.radio("Select category:", options_with_separator, key=f"choice_{st.session_state.current_index}")
 
         if st.button("Save and continue"):
             # Save coding
