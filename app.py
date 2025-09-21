@@ -116,7 +116,7 @@ if uploaded_file and coder:
         else:
             choices = negative_cats + special_cats + ["Not actually negative"]
 
-        # Use a form to avoid rerun errors
+        # Use a form to safely handle submission
         with st.form(key=f"form_{st.session_state.current_index}"):
             choice = st.radio("Select category:", choices, index=None, key=f"choice_{st.session_state.current_index}")
             submit = st.form_submit_button("Save and continue")
@@ -132,9 +132,6 @@ if uploaded_file and coder:
                 st.session_state.current_index = next_unclassified
             else:
                 st.session_state.current_index = None
-
-            # Streamlit will rerun automatically
-            st.experimental_rerun()
 
     else:
         st.success("All responses classified! 🎉")
