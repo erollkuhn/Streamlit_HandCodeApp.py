@@ -63,7 +63,12 @@ if uploaded_file and coder:
 
     # Sort so positives come before negatives
     type_order = {"positive": 0, "negative": 1}
-    df = df.sort_values(by=["ResponseId", df["type"].map(type_order), "item"]).reset_index(drop=True)
+    # Map positive/negative to numbers for ordering
+type_order = {"positive": 0, "negative": 1}
+df["type_order"] = df["type"].map(type_order)
+
+# Sort so positives come before negatives
+df = df.sort_values(by=["ResponseId", "type_order", "item"]).reset_index(drop=True)
 
     # Filter unclassified
     unclassified = df[df["category"] == ""]
