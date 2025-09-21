@@ -103,6 +103,17 @@ if uploaded_file and coder:
     st.write(f"Progress: {done} / {total} responses classified")
 
     # ----------------------------
+    # Always allow downloading current progress
+    # ----------------------------
+    if os.path.exists(save_path):
+        st.download_button(
+            "Download current CSV progress",
+            pd.read_csv(save_path).to_csv(index=False),
+            "classified_responses_progress.csv",
+            mime="text/csv"
+        )
+
+    # ----------------------------
     # Show current response
     # ----------------------------
     if st.session_state.current_index is not None and st.session_state.current_index in df.index:
