@@ -73,17 +73,20 @@ if uploaded_file and coder:
 
     if os.path.exists(save_path):
         saved = pd.read_csv(save_path)
+        # Ensure 'category' column exists and has strings
         if "category" not in saved.columns:
             saved["category"] = ""
         saved["category"] = saved["category"].fillna("")
         saved["coder"] = saved.get("coder", "")
 
+        # Merge saved progress into current df
         df = df.merge(
             saved[["ResponseId", "type", "item", "category", "coder"]],
             on=["ResponseId", "type", "item"],
             how="left",
             suffixes=("", "_saved")
         )
+        # Use saved category/coder if available
         df["category"] = df["category_saved"].combine_first(df["category"])
         df["coder"] = df["coder_saved"].combine_first(df["coder"])
         df = df.drop(columns=["category_saved", "coder_saved"])
@@ -107,29 +110,27 @@ if uploaded_file and coder:
     if not unclassified.empty and st.session_state.current_index < len(unclassified):
         row = unclassified.iloc[st.session_state.current_index]
 
-        with st.form(key=f"form_{st.session_state.current_index}"):
-            # Positive/Negative header
-            st.markdown(f"### {'✅ Positive' if row['type']=='positive' else '❌ Negative'} Response")
-            st.info(f"**Response text:** {row['value']}")
+        # Positive/Negative header
+        st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
+        st.info(f"**Response text:** {row['value']}")
 
-            # Options with placeholder
-            if row["type"] == "positive":
-                choices = ["-- Select a category --"] + positive_cats + special_cats + ["Not actually positive"]
+        # Single radio with all options (structured first, then special), placeholder first
+        if row["type"] == "positive":
+            choices = ["-- Select a category --"] + positive_cats + special_cats + ["Not actually positive"]
+        else:
+            choices = ["-- Select a category --"] + negative_cats + special_cats + ["Not actually negative"]
+
+        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
+
+        if st.button("Save and continue"):
+            if choice == "-- Select a category --":
+                st.warning("Please select a category before continuing.")
             else:
-                choices = ["-- Select a category --"] + negative_cats + special_cats + ["Not actually negative"]
-
-            choice = st.radio("Select category:", choices, key=f"selection_{st.session_state.current_index}")
-
-            submit = st.form_submit_button("Save and continue")
-            if submit:
-                if choice == "-- Select a category --":
-                    st.warning("Please select a category before continuing.")
-                else:
-                    # Save selection
-                    df.loc[row.name, "category"] = choice
-                    df.loc[row.name, "coder"] = coder
-                    df.to_csv(save_path, index=False)
-                    st.session_state.current_index += 1
+                # Save coding
+                df.loc[row.name, "category"] = choice
+                df.loc[row.name, "coder"] = coder
+                df.to_csv(save_path, index=False)
+                st.session_state.current_index += 1
 
     else:
         st.success("All responses classified! 🎉")
