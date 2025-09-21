@@ -110,25 +110,41 @@ if uploaded_file and coder:
     if not unclassified.empty and st.session_state.current_index < len(unclassified):
         row = unclassified.iloc[st.session_state.current_index]
 
-        # Positive/Negative header
-        st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
+        # Initialize selection for no priming
+        if f"selection_{st.session_state.current_index}" not in st.session_state:
+            st.session_state[f"selection_{st.session_state.current_index}"] = None
 
-        st.info(f"**Response text:** {row['value']}")
+        with st.form(key=f"form_{st.session_state.current_index}"):
+            # Positive/Negative header
+            st.markdown(f"### {'✅ Positive' if row['type']=='positive' else '❌ Negative'} Response")
+            st.info(f"**Response text:** {row['value']}")
 
-        # Single radio with all options (structured first, then special)
-        if row["type"] == "positive":
-            choices = positive_cats + special_cats + ["Not actually positive"]
-        else:
-            choices = negative_cats + special_cats + ["Not actually negative"]
+            # Options
+            if row["type"] == "positive":
+                choices = positive_cats + special_cats + ["Not actually positive"]
+            else:
+                choices = negative_cats + special_cats + ["Not actually negative"]
 
-        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
+            # Radio with no default selection
+            choice = st.radio(
+                "Select category:",
+                choices,
+                index=-1,
+                key=f"selection_{st.session_state.current_index}"
+            )
 
-        if st.button("Save and continue"):
-            # Save coding
-            df.loc[row.name, "category"] = choice
-            df.loc[row.name, "coder"] = coder
-            df.to_csv(save_path, index=False)
-            st.session_state.current_index += 1
+            submit = st.form_submit_button("Save and continue")
+            if submit:
+                if choice is None:
+                    st.warning("Please select a category before continuing.")
+                else:
+                    # Save
+                    df.loc[row.name, "category"] = choice
+                    df.loc[row.name, "coder"] = coder
+                    df.to_csv(save_path, index=False)
+                    st.session_state.current_index += 1
+                    # Reset selection for next row
+                    st.session_state[f"selection_{st.session_state.current_index}"] = None
 
     else:
         st.success("All responses classified! 🎉")
