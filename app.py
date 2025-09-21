@@ -41,11 +41,7 @@ if uploaded_file and coder:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
         else:
-            try:
-                df = pd.read_csv(uploaded_file)
-            except Exception:
-                uploaded_file.seek(0)
-                df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="latin1")
+            df = pd.read_csv(uploaded_file)
     except Exception as e:
         st.error(f"Could not read file: {e}")
         st.stop()
@@ -73,20 +69,17 @@ if uploaded_file and coder:
 
     if os.path.exists(save_path):
         saved = pd.read_csv(save_path)
-        # Ensure 'category' column exists and has strings
         if "category" not in saved.columns:
             saved["category"] = ""
         saved["category"] = saved["category"].fillna("")
         saved["coder"] = saved.get("coder", "")
 
-        # Merge saved progress into current df
         df = df.merge(
             saved[["ResponseId", "type", "item", "category", "coder"]],
             on=["ResponseId", "type", "item"],
             how="left",
             suffixes=("", "_saved")
         )
-        # Use saved category/coder if available
         df["category"] = df["category_saved"].combine_first(df["category"])
         df["coder"] = df["coder_saved"].combine_first(df["coder"])
         df = df.drop(columns=["category_saved", "coder_saved"])
@@ -95,10 +88,13 @@ if uploaded_file and coder:
     # Session state for current row
     # ----------------------------
     if "current_index" not in st.session_state:
-        st.session_state.current_index = 0
+        # Store absolute df index of first unclassified row
+        first_unclassified = df[df["category"] == ""].index.min()
+        st.session_state.current_index = first_unclassified if pd.notna(first_unclassified) else 0
 
     # Filter unclassified rows
-    unclassified = df[df["category"] == ""].reset_index(drop=True)
+    unclassified = df[df["category"] == ""]
+
     total = df.shape[0]
     done = total - len(unclassified)
 
@@ -107,15 +103,12 @@ if uploaded_file and coder:
     # ----------------------------
     # Show current response
     # ----------------------------
-    if not unclassified.empty and st.session_state.current_index < len(unclassified):
-        row = unclassified.iloc[st.session_state.current_index]
+    if not unclassified.empty and st.session_state.current_index in df.index:
+        row = df.loc[st.session_state.current_index]
 
-        # Positive/Negative header
         st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
-
         st.info(f"**Response text:** {row['value']}")
 
-        # Single radio with all options (structured first, then special)
         if row["type"] == "positive":
             choices = positive_cats + special_cats + ["Not actually positive"]
         else:
@@ -124,11 +117,18 @@ if uploaded_file and coder:
         choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
 
         if st.button("Save and continue"):
-            # Save coding
-            df.loc[row.name, "category"] = choice
-            df.loc[row.name, "coder"] = coder
+            df.loc[st.session_state.current_index, "category"] = choice
+            df.loc[st.session_state.current_index, "coder"] = coder
             df.to_csv(save_path, index=False)
-            st.session_state.current_index += 1
+
+            # Advance to next unclassified row
+            next_unclassified = df[df["category"] == ""].index.min()
+            if pd.notna(next_unclassified):
+                st.session_state.current_index = next_unclassified
+            else:
+                st.session_state.current_index = None
+
+            st.experimental_rerun()
 
     else:
         st.success("All responses classified! 🎉")
