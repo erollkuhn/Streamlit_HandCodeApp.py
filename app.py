@@ -115,27 +115,19 @@ if uploaded_file and coder:
 
         st.info(f"**Response text:** {row['value']}")
 
-        # Select categories based on type
+        # Single radio with all options (structured first, then special)
         if row["type"] == "positive":
             choices = positive_cats + special_cats + ["Not actually positive"]
         else:
             choices = negative_cats + special_cats + ["Not actually negative"]
 
-        # Add separator before special options
-        options_with_separator = []
-        for i, c in enumerate(choices):
-            if i == 5:  # after the five structured categories
-                options_with_separator.append("---")  # Streamlit will render as horizontal line
-            options_with_separator.append(c)
-
-        choice = st.radio("Select category:", options_with_separator, key=f"choice_{st.session_state.current_index}")
+        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
 
         if st.button("Save and continue"):
             # Save coding
             df.loc[row.name, "category"] = choice
             df.loc[row.name, "coder"] = coder
             df.to_csv(save_path, index=False)
-            # Advance to next response
             st.session_state.current_index += 1
 
     else:
