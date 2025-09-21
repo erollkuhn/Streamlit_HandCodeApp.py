@@ -41,7 +41,11 @@ if uploaded_file and coder:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
         else:
-            df = pd.read_csv(uploaded_file)
+            try:
+                df = pd.read_csv(uploaded_file)
+            except Exception:
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="latin1")
     except Exception as e:
         st.error(f"Could not read file: {e}")
         st.stop()
@@ -69,17 +73,20 @@ if uploaded_file and coder:
 
     if os.path.exists(save_path):
         saved = pd.read_csv(save_path)
+        # Ensure 'category' column exists and has strings
         if "category" not in saved.columns:
             saved["category"] = ""
         saved["category"] = saved["category"].fillna("")
         saved["coder"] = saved.get("coder", "")
 
+        # Merge saved progress into current df
         df = df.merge(
             saved[["ResponseId", "type", "item", "category", "coder"]],
             on=["ResponseId", "type", "item"],
             how="left",
             suffixes=("", "_saved")
         )
+        # Use saved category/coder if available
         df["category"] = df["category_saved"].combine_first(df["category"])
         df["coder"] = df["coder_saved"].combine_first(df["coder"])
         df = df.drop(columns=["category_saved", "coder_saved"])
@@ -103,7 +110,9 @@ if uploaded_file and coder:
     if not unclassified.empty and st.session_state.current_index < len(unclassified):
         row = unclassified.iloc[st.session_state.current_index]
 
+        # Positive/Negative header
         st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
+
         st.info(f"**Response text:** {row['value']}")
 
         # Single radio with all options (structured first, then special)
@@ -120,7 +129,6 @@ if uploaded_file and coder:
             df.loc[row.name, "coder"] = coder
             df.to_csv(save_path, index=False)
             st.session_state.current_index += 1
-            st.experimental_rerun()  # immediately show next response
 
     else:
         st.success("All responses classified! 🎉")
