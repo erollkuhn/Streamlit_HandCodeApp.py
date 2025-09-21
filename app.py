@@ -186,7 +186,7 @@ if uploaded_file and coder:
                 st.session_state[state_key] = next_index
 
                 # let Streamlit rerun and show next response automatically
-                st.experimental_rerun()
+                st.rerun()
 
     else:
         st.success(f"All responses for **{coder}** are classified (or no available rows). 🎉")
