@@ -93,6 +93,8 @@ if uploaded_file and coder:
     # ----------------------------
     if "current_index" not in st.session_state:
         st.session_state.current_index = 0
+    if "rerun_needed" not in st.session_state:
+        st.session_state.rerun_needed = False
 
     # Filter unclassified rows
     unclassified = df[df["category"] == ""].reset_index(drop=True)
@@ -130,7 +132,7 @@ if uploaded_file and coder:
                     df.loc[row.name, "coder"] = coder
                     df.to_csv(save_path, index=False)
                     st.session_state.current_index += 1
-                    st.experimental_rerun()  # immediately show next response
+                    st.session_state.rerun_needed = True  # trigger rerun outside form
 
     else:
         st.success("All responses classified! 🎉")
@@ -140,3 +142,10 @@ if uploaded_file and coder:
             "classified_responses.csv",
             mime="text/csv"
         )
+
+    # ----------------------------
+    # Handle rerun safely outside form
+    # ----------------------------
+    if st.session_state.rerun_needed:
+        st.session_state.rerun_needed = False
+        st.experimental_rerun()
