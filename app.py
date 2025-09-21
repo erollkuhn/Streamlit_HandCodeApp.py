@@ -116,9 +116,12 @@ if uploaded_file and coder:
         else:
             choices = negative_cats + special_cats + ["Not actually negative"]
 
-        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
+        # Use a form to avoid rerun errors
+        with st.form(key=f"form_{st.session_state.current_index}"):
+            choice = st.radio("Select category:", choices, index=None, key=f"choice_{st.session_state.current_index}")
+            submit = st.form_submit_button("Save and continue")
 
-        if st.button("Save and continue"):
+        if submit:
             df.loc[st.session_state.current_index, "category"] = choice
             df.loc[st.session_state.current_index, "coder"] = coder
             df.to_csv(save_path, index=False)
@@ -130,6 +133,7 @@ if uploaded_file and coder:
             else:
                 st.session_state.current_index = None
 
+            # Streamlit will rerun automatically
             st.experimental_rerun()
 
     else:
