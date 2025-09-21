@@ -67,13 +67,29 @@ if uploaded_file and coder:
     df = df.sort_values(by=["ResponseId", "type_order", "item"]).reset_index(drop=True)
 
     # ----------------------------
-    # Save path
+    # Save path for progress
     # ----------------------------
     save_path = "classified_responses.csv"
+
     if os.path.exists(save_path):
         saved = pd.read_csv(save_path)
-        if len(saved) == len(df):
-            df = saved
+        # Ensure 'category' column exists and has strings
+        if "category" not in saved.columns:
+            saved["category"] = ""
+        saved["category"] = saved["category"].fillna("")
+        saved["coder"] = saved.get("coder", "")
+
+        # Merge saved progress into current df
+        df = df.merge(
+            saved[["ResponseId", "type", "item", "category", "coder"]],
+            on=["ResponseId", "type", "item"],
+            how="left",
+            suffixes=("", "_saved")
+        )
+        # Use saved category/coder if available
+        df["category"] = df["category_saved"].combine_first(df["category"])
+        df["coder"] = df["coder_saved"].combine_first(df["coder"])
+        df = df.drop(columns=["category_saved", "coder_saved"])
 
     # ----------------------------
     # Session state for current row
