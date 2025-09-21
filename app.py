@@ -41,11 +41,7 @@ if uploaded_file and coder:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
         else:
-            try:
-                df = pd.read_csv(uploaded_file)
-            except Exception:
-                uploaded_file.seek(0)
-                df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="latin1")
+            df = pd.read_csv(uploaded_file)
     except Exception as e:
         st.error(f"Could not read file: {e}")
         st.stop()
@@ -110,27 +106,21 @@ if uploaded_file and coder:
         st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
         st.info(f"**Response text:** {row['value']}")
 
-        # Options with placeholder first
+        # Single radio with all options (structured first, then special)
         if row["type"] == "positive":
-            choices = ["-- Select a category --"] + positive_cats + special_cats + ["Not actually positive"]
+            choices = positive_cats + special_cats + ["Not actually positive"]
         else:
-            choices = ["-- Select a category --"] + negative_cats + special_cats + ["Not actually negative"]
+            choices = negative_cats + special_cats + ["Not actually negative"]
 
-        # Use a form for reliable single-click save
-        with st.form(key=f"form_{st.session_state.current_index}"):
-            choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
-            submit = st.form_submit_button("Save and continue")
+        choice = st.radio("Select category:", choices, key=f"choice_{st.session_state.current_index}")
 
-            if submit:
-                if choice == "-- Select a category --":
-                    st.warning("Please select a category before continuing.")
-                else:
-                    # Save coding
-                    df.loc[row.name, "category"] = choice
-                    df.loc[row.name, "coder"] = coder
-                    df.to_csv(save_path, index=False)
-                    st.session_state.current_index += 1
-                    st.experimental_rerun = None  # REMOVE rerun; let Streamlit naturally rerun
+        if st.button("Save and continue"):
+            # Save coding
+            df.loc[row.name, "category"] = choice
+            df.loc[row.name, "coder"] = coder
+            df.to_csv(save_path, index=False)
+            st.session_state.current_index += 1
+            st.experimental_rerun()  # immediately show next response
 
     else:
         st.success("All responses classified! 🎉")
