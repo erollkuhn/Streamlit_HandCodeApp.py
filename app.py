@@ -35,18 +35,21 @@ uploaded_file = st.file_uploader("Upload dataset (CSV or Excel)", type=["csv", "
 if uploaded_file and coder:
 
     # ----------------------------
-    # Load dataset
+    # Load dataset robustly
     # ----------------------------
     try:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
         else:
-            df = pd.read_csv(uploaded_file)
+            uploaded_file.seek(0)
+            df = pd.read_csv(uploaded_file, engine="python", sep=None, encoding="utf-8")
     except Exception as e:
         st.error(f"Could not read file: {e}")
         st.stop()
 
+    # ----------------------------
     # Add missing columns
+    # ----------------------------
     if "category" not in df.columns:
         df["category"] = ""
     if "coder" not in df.columns:
@@ -56,7 +59,7 @@ if uploaded_file and coder:
     df = df[df["value"].notna()].reset_index(drop=True)
 
     # ----------------------------
-    # Sort all positives first, then negatives
+    # Sort positives first, then negatives
     # ----------------------------
     type_order = {"positive": 0, "negative": 1}
     df["type_order"] = df["type"].map(type_order)
@@ -88,22 +91,21 @@ if uploaded_file and coder:
     # Session state for current row
     # ----------------------------
     if "current_index" not in st.session_state:
-        # Store absolute df index of first unclassified row
         first_unclassified = df[df["category"] == ""].index.min()
-        st.session_state.current_index = first_unclassified if pd.notna(first_unclassified) else 0
+        st.session_state.current_index = first_unclassified if pd.notna(first_unclassified) else None
 
-    # Filter unclassified rows
+    # ----------------------------
+    # Progress
+    # ----------------------------
     unclassified = df[df["category"] == ""]
-
     total = df.shape[0]
     done = total - len(unclassified)
-
     st.write(f"Progress: {done} / {total} responses classified")
 
     # ----------------------------
     # Show current response
     # ----------------------------
-    if not unclassified.empty and st.session_state.current_index in df.index:
+    if st.session_state.current_index is not None and st.session_state.current_index in df.index:
         row = df.loc[st.session_state.current_index]
 
         st.markdown(f"### {'✅ Positive' if row['type'] == 'positive' else '❌ Negative'} Response")
@@ -121,7 +123,7 @@ if uploaded_file and coder:
             df.loc[st.session_state.current_index, "coder"] = coder
             df.to_csv(save_path, index=False)
 
-            # Advance to next unclassified row
+            # Move to next unclassified row
             next_unclassified = df[df["category"] == ""].index.min()
             if pd.notna(next_unclassified):
                 st.session_state.current_index = next_unclassified
